@@ -12,7 +12,8 @@ raw_docs = loader.load()
 print("raw docs", raw_docs)
 
 
-# Recursively split by character
+# Split documents into small chunks. This allows us to identify the most
+# relevant segments for a query and feed only those into the LLM
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
@@ -24,19 +25,23 @@ text_splitter = RecursiveCharacterTextSplitter(
 )
 
 docs = text_splitter.split_documents(raw_docs)
-print("split 0", docs[0])
+print("\nsplit 0", docs[0])
 print("split 1", docs[1])
 
 
-# Embedding into a database
+# Generate embeddings for each segment and integrate them into the Chroma
+# vector database
 
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 
-db = Chroma.from_documents(docs, OpenAIEmbeddings())
+vectorstore = Chroma.from_documents(docs, OpenAIEmbeddings(),
+                                    persist_directory="./chroma_db")
 
 query = "Que apredizados devo apresentar ao fim dessa unidade de HTML?"
-search_docs = db.similarity_search(query)
+search_docs = vectorstore.similarity_search(query)
+
+print("\nquery", query)
 print("related content", search_docs)
 
 
@@ -50,10 +55,11 @@ record_manager = SQLRecordManager(namespace,
 
 record_manager.create_schema()
 
+print('')
 print(index(
     docs,
     record_manager,
-    db,
+    vectorstore,
     cleanup="full",
     source_id_key="source"))
 
@@ -63,7 +69,7 @@ print("removing doc")
 print(index(
     docs,
     record_manager,
-    db,
+    vectorstore,
     cleanup="full",
     source_id_key="source"))
 
@@ -73,6 +79,6 @@ print("append doc")
 print(index(
     docs,
     record_manager,
-    db,
+    vectorstore,
     cleanup="full",
     source_id_key="source"))
