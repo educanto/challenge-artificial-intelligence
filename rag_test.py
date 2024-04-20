@@ -18,7 +18,7 @@ print("raw docs", raw_docs)
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=500,
+    chunk_size=200,
     chunk_overlap=20,
     length_function=len,
     is_separator_regex=False,
@@ -40,6 +40,9 @@ vectorstore = Chroma.from_documents(docs, OpenAIEmbeddings(),
 
 query = "Que apredizados devo apresentar ao fim dessa unidade de HTML?"
 search_docs = vectorstore.similarity_search(query)
+
+retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+search_docs2 = retriever.invoke(query)
 
 print("\nquery", query)
 print("related content", search_docs)
