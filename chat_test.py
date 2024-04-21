@@ -6,11 +6,10 @@ from langchain.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, \
     MessagesPlaceholder, SystemMessagePromptTemplate
 from langchain_openai import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
-from langchain.chains import LLMChain
+from langchain.chains.llm import LLMChain
 
 
 bot_name = 'AI Tutor+'
-max_chat_memory = 5
 
 load_dotenv()
 
@@ -74,11 +73,11 @@ if "llm_chain" not in st.session_state:
 
     st.session_state.llm_chain = llm_chain
 
-
-for msg in st.session_state.llm_chain.memory.chat_memory.messages:
-    owner = bot_name if isinstance(msg, AIMessage) else 'User'
-    with st.chat_message(name=owner):
-        st.write(msg.content)
+if "llm_chain" in st.session_state:
+    for msg in st.session_state.llm_chain.memory.chat_memory.messages:
+        owner = bot_name if isinstance(msg, AIMessage) else 'User'
+        with st.chat_message(name=owner):
+            st.write(msg.content)
 
 
 if user_input := st.chat_input("Digite aqui"):
