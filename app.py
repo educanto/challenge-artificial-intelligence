@@ -46,19 +46,19 @@ if st.button("Limpar histórico"):
     st.balloons()
 
 if "docs_summarization" not in st.session_state:
-    """
-    1 - Sumarization
-    
-    ref: https://python.langchain.com/docs/use_cases/summarization/
-    
-    Goes through the resources folder and generates a list of topics with 
-    the content they cover. The process respects the token limit of the LLM 
-    context window. Therefore, the topic generation is done recursively until 
-    all documents have been covered.
-    
-    This may take a few seconds, but it only runs once on chat startup. 
-    Alternatively, it can be adapted to generate the topics externally.
-    """
+
+    # 1 - Sumarization
+    #
+    # ref: https://python.langchain.com/docs/use_cases/summarization/
+    #
+    # Goes through the resources folder and generates a list of topics with
+    # the content they cover. The process respects the token limit of the LLM
+    # context window. Therefore, the topic generation is done recursively until
+    # all documents have been covered.
+    #
+    # This may take a few seconds, but it only runs once on chat startup.
+    # Alternatively, it can be adapted to generate the topics externally.
+
 
     llm_summarization = ChatOpenAI(model="gpt-3.5-turbo", temperature=0,
                                    streaming=False)
@@ -110,7 +110,8 @@ Resposta útil:"""
         return_intermediate_steps=False,
     )
 
-    loader = DirectoryLoader('resources/', exclude=["*.mp4", "*.json"])
+    loader = DirectoryLoader('resources/', exclude=["*.mp4", "*.json"],
+                             use_multithreading=True)
     docs = loader.load()
 
     text_splitter = CharacterTextSplitter.from_tiktoken_encoder(
@@ -126,22 +127,18 @@ Resposta útil:"""
 
 
 if "llm_chain" not in st.session_state:
-    """
-    2 - Interactive Learning Conversational Chat
-    
-    ref: https://python.langchain.com/docs/use_cases/question_answering/chat_history/
-    
-    Chat that interacts with the user to identify topics that need to be 
-    taught and present lessons.
 
-    Receives the list of topics obtained from documents as a context for the 
-    topic selection. Contains a chain that identifies the current topic of 
-    discussion and generates a query to search for relevant information in the 
-    documents, which are also inserted in the chat context.
-    """
-    ##################
-
-
+    # 2 - Interactive Learning Conversational Chat
+    #
+    # ref: https://python.langchain.com/docs/use_cases/question_answering/chat_history/
+    #
+    # Chat that interacts with the user to identify topics that need to be
+    # taught and present lessons.
+    #
+    # Receives the list of topics obtained from documents as a context for the
+    # topic selection. Contains a chain that identifies the current topic of
+    # discussion and generates a query to search for relevant information in
+    # the documents, which are also inserted in the chat context.
 
     llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.5, streaming=False)
 
