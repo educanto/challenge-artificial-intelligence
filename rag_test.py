@@ -2,12 +2,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
 # Load files of many types
 
 from langchain_community.document_loaders import DirectoryLoader
 
-loader = DirectoryLoader('resources/', exclude=["*.mp4", "*.json"])
+loader = DirectoryLoader('resources/', exclude=["*.mp4", "*.json"],
+                         use_multithreading=True)
 raw_docs = loader.load()
 print("raw docs", raw_docs)
 
@@ -35,14 +35,18 @@ print("split 1", docs[1])
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 
-vectorstore = Chroma.from_documents(docs, OpenAIEmbeddings(),
-                                    persist_directory="./chroma_db")
+dir = 'db_docs'
+embedding = OpenAIEmbeddings()
+
+vectorstore = Chroma.from_documents(docs, embedding, persist_directory=dir)
+del vectorstore
+
+# Load database from folder
+vectorstore = Chroma(persist_directory=dir, embedding_function=embedding)
+retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
 query = "Que apredizados devo apresentar ao fim dessa unidade de HTML?"
-search_docs = vectorstore.similarity_search(query)
-
-retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
-search_docs2 = retriever.invoke(query)
+search_docs = retriever.invoke(query)
 
 print("\nquery", query)
 print("related content", search_docs)
