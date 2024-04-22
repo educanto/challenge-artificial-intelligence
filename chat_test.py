@@ -14,10 +14,6 @@ bot_name = 'AI Tutor+'
 load_dotenv()
 
 
-def free_up_memory_space(chat_hist):
-    chat_hist.pop(0)
-
-
 def create_chat_first_message():
     return AIMessage("Olá! Vamos aprender sobre a língua inglesa?")
 
