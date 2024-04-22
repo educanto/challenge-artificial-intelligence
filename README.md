@@ -1,62 +1,132 @@
-+A Educação - Engenheiro de Inteligência Artificial
-===================
+# Introdução
 
-[![N|Solid](https://maisaedu.com.br/hubfs/site-grupo-a/logo-mais-a-educacao.svg)](https://maisaedu.com.br/) 
+Esse repositório contém a implementação de um chatbot para geração de 
+conteúdos com base no nível de conhecimento do usuário. O escopo dos 
+conteúdos é limitado por um conjunto de arquivos, o qual o chat possui 
+acesso.
 
-O objetivo deste desafio é avaliar as competências técnicas dos candidatos a Engenheiro de Inteligência Artificial na Maior Plataforma de Educação do Brasil.
+A solução foi construída com os módulos Langchain e Streamlit.
 
-Neste teste prático, você será apresentado a um conjunto de dados simulado relacionado aos fundamentos de programação. Seu objetivo é realizar a indexação dos diferentes tipos de dados e desenvolver um prompt de sistema de aprendizagem adaptativa que gere conteúdos dinâmicos conforme as dificuldades e desconhecimentos do usuário sobre o tema.
+# Arquitetura da solução
 
-# Sobre os dados
+A solução é composta por dois módulos principais: 
 
-O conjunto de dados definidos para este teste é de propriedade intelectual da +A Educação e deverá ser utilizado exclusivamente para esta finalidade, sendo composto por:
+- Sumarização
+- Chat Conversacional
 
-- **Textos:** Uma coleção de textos extraídos de módulos de aprendizagem.
-- **PDFs:** Livros e manuais introdutórios sobre o conteúdo abordado.  
-- **Vídeos:** Pequenos vídeos de dicas de professor, que explicam o conteúdo abordado. Os vídeos estão em formatos .mp4 
+O módulo de sumarização é responsável por percorrer os documentos de escopo 
+fornecidos e gerar uma lista de tópicos sobre os conteúdo que eles 
+abrangem.
 
-O conjunto de dados pode ser obtido [clicando aqui](https://github.com/grupo-a/challenge-artificial-intelligence/tree/main/resources).
+O módulo Chat Conversacional, por sua vez, interage com o usuário para 
+identificar tópicos que precisam ser ensinados e apresentar as lições. O 
+tópico atual da conversa é embasado através de documentos específicos 
+relacionados a ele.
 
-# Requisitos
-## Etapa 1: Indexação dos Dados
-Defina a ferramenta de indexação que considere adequada para o projeto. Recomenda-se escolher uma ferramenta que possa suportar a geração dinâmica de conteúdos adaptativos no prompt de IA generativa.
-Indexe os diferentes tipos de dados para permitir uma busca eficiente e relevante.
+O esquemático a seguir mostra o detalhamento dos processos executados em 
+cada módulo:
 
-Os textos devem ser indexados para permitir uma busca eficiente por palavras-chave e frases relevantes.
+![Texto Alternativo](esquematico.png)
 
-Os PDFs devem ser processados para extrair texto pesquisável e metadados importantes.
+Toda a implementação foi realizada no script *app.py*.
 
-Os vídeos devem ser transcritos, se possível, e indexados com base no texto transcrito, juntamente com metadados descritivos.
+### Sumarização
 
-As imagens devem ser indexadas considerando metadados relevantes, como tags, descrições e informações sobre o conteúdo visual.
+No módulo de sumarização, a pasta *resources* é acessada através do 
+*DirectoryLoader*, o qual extrai informações textuais de arquivos de diversos 
+formatos, como textos, imagens e vídeos. As informações resultantes são 
+chamadas de *Documentos*. Em seguida, a classe *CharacterTextSplitter* divide 
+os documentos em lotes de tamanho personalizado para facilitação do uso com 
+LLMs. Os documentos divididos são então salvos em um banco de dados 
+vetorizado (pasta db_docs) para posteriormente serem utilizados para 
+recuperação (retrieval) de informações. 
+
+O fluxo do módulo Sumarização continua com um processo recursivo onde uma 
+LLM recebe prompts contendo os textos de um conjunto de documentos e 
+instruções para resumir o conteúdo em tópicos. Por fim, outra LLM recebe um 
+prompt contendo um conjunto de sumários e instruções para agrupá-los e 
+constituir um sumário final, contendo a lista de tópicos dos conteúdos 
+dos documentos. Vale notar que a implementação da sumarização de forma 
+recursiva permite que um grande número de documentos seja sumarizado sem 
+que o limite da janela de contexto da LLM seja extrapolado.
+
+A execução do módulo de Sumarização pode levar um tempo considerável caso o 
+número de arquivos seja muito grande. Por isso, a execução é feita somente 
+na inicialização do chat e tanto o sumário final quanto o banco de dados 
+vetorizados são armazenados. Uma alternativa é fazer esse processo de forma 
+offline e só repeti-lo quando houver mudanças na base de dados.
 
 
-## Etapa 2:  Prompt de Aprendizagem Adaptativa
-Construa um prompt interativo, utilizando as tecnologias que julgar apropriadas, que identifique as dificuldades e lacunas de conhecimento dos usuários em um diálogo fluido e intuitivo para avaliar e entender as áreas onde seu conhecimento sobre um tema específico pode ser insuficiente. O escopo deve estar limitado ao conteúdo indexado.  Durante as interações, inclua mecanismos que permitam identificar as preferências dos usuários quanto ao formato de aprendizado mais efetivo para eles, seja texto, vídeo ou áudio, adaptando-se assim às suas preferências pessoais de consumo de conteúdo.
+### Chat Conversacional
 
-Baseado nas interações analise as dificuldades e gere conteúdos dinâmicos curtos em diferentes formatos (vídeos, áudios, textos) para abordar as necessidades específicas de aprendizagem do usuário. Os conteúdos devem ser relevantes, informativos e adaptados ao nível de conhecimento do usuário.
+No módulo Chat Conversacional a cadeia é iniciada com uma LLM com 
+instruções para resumir o tópico mais recente da discussão, contida na 
+memória do chat. Com essa informação, uma busca por similaridade é 
+realizada no banco de dados vetorizado, obtendo os trechos mais relevantes 
+dos documentos para servirem de contexto. Por fim, o prompt da LLM 
+conversacional é alimentado com a entrada atual do usuário, os trechos 
+relevantes dos documentos, a lista de todos os tópicos e as seguintes 
+instruções, resumidamente:
 
-# Critérios de avaliação
-- Qualidade de escrita do código.
-- Organização do projeto.
-- Lógica da solução implementada.
-- Capacidade de escolher as tecnologias apropriadas para indexação de dados e desenvolvimento do sistema de aprendizagem adaptativa.
-- Eficiência na manipulação de diferentes tipos de dados (textos, PDFs, vídeos).
-- Competência na construção de prompts de IA que geram conteúdos adaptativos dinâmicos.
-- Capacidade de integrar diferentes componentes do sistema (indexação, interface de usuário, geração de conteúdo) de forma coesa.
+> Interaja com o usuário para identificar conteúdos que ele mais precisa 
+> aprender, com base no escopo fornecido a você. Em seguida, crie lições 
+> personalizadas para cada tópico com base no nível de conhecimento do usuário.
 
-# Diferenciais
-- Avaliação da capacidade do sistema em identificar corretamente as dificuldades dos usuários e adaptar o conteúdo de aprendizagem conforme necessário.
-- Relevância, informatividade e adaptação do conteúdo gerado ao nível de conhecimento do usuário.
-- Performance do sistema em diferentes condições de uso e sua capacidade de escalar conforme o aumento do número de usuários.
+Uma forma de simplificar esse processo é eliminar o módulo Sumarização e 
+colocar todos os documentos na janela de contexto da LLM conversacional. 
+Entretanto, essa abordagem não é escalável para grandes quantidades de 
+arquivos e por isso não foi escolhida.
 
-# Instruções de entrega
-1. Crie um fork do repositório no seu GitHub
-2. Faça o push do código desenvolvido no seu Github
-3. Inclua um arquivo chamado COMMENTS.md explicando
-    - Decisão da arquitetura utilizada
-    - Lista de bibliotecas de terceiros utilizadas
-    - O que você melhoraria se tivesse mais tempo
-    - Quais requisitos obrigatórios que não foram entregues
-4. Informe ao recrutador quando concluir o desafio junto com o link do repositório
-5. Após revisão do projeto junto com a equipe de desenvolvimento deixe seu repositório privado
+### Scripts auxiliares
+
+O repositório conta também com os scripts *rag_test.py* e *chat_test.py*. 
+Apesar de não serem necessários para a aplicação, eles foram mantidos pois 
+foram utilizados durante a implementação para aprendizado, testes e como 
+provas de conceitos (POCs).
+
+*rag_test.py* contém os processos de carregamento, divisão, 
+codificação e indexação de documentos. Ele pode ser executado normalmente 
+com *python rag_test.py*. Já o *chat_test.py* contém um chabot simples
+com instruções para identificar o nível de inglês do usuário e fornecer 
+lições personalizadas para o aprendizado da lingua. Ele é executado com o 
+comando *streamlit run chat_test.py*.
+
+# Setup
+
+A implementação desse repositório foi realizada em Windows, mas pode ser 
+adaptada para execução em Linux. Considerando a execução em Windows, 
+realize os seguintes passos para preparação do repositório:
+
+1. Certifique-se de utilizar o Python 3.10;
+2. Faça a clonagem do repositório no diretório de interesse;
+3. Crie um ambiente virtual para instalação das dependências: *python -m 
+   venv {nome_do_ambiente}*
+4. Ative o ambiente virtual: *{nome_do_ambiente}\Scripts\activate.bat*
+5. Instale as dependências dos projeto com *pip install -r requirements.txt*
+6. Siga as instruções em 
+   https://pdf2image.readthedocs.io/en/latest/installation.html para instalar 
+   o módulo pdf2image e adicionar ao PATH;
+7. Instale o módulo Tesseract através do executável em
+   https://github.com/UB-Mannheim/tesseract/wiki. Adicione o diretório de 
+   instalação ao PATH. Referência: 
+   https://stackoverflow.com/questions/50951955/pytesseract-tesseractnotfound-error-tesseract-is-not-installed-or-its-not-i  
+
+A aplicação deve ser executada com o comando *streamlit run app.py*
+
+
+
+# Dificuldades de implementação
+
+### Indexação de arquivos .mp4 e .json
+
+A classe *DirectoryLoader* deveria suportar o carregamento de múltiplos 
+tipos de arquivo. Porém, na tentativa de carregar arquivos JSON o erro 
+*ValueError: Json schema does not match the Unstructured schema* acontece. 
+Além disso, o módulo não é compatível com arquivos .mp4.
+
+Por falta de tempo, optou-se por ignorar o carregamento desses dois arquivos.
+
+### Geração de conteúdos dinâmicos
+
+Os conteúdos gerados pela LLM se limitaram a conteúdos textuais. Não foi 
+possível abordar em tempo a geração de conteúdos em áudio e vídeo.
