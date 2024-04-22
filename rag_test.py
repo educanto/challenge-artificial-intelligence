@@ -19,7 +19,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=200,
-    chunk_overlap=20,
+    chunk_overlap=10,
     length_function=len,
     is_separator_regex=False,
 )
@@ -35,17 +35,13 @@ print("split 1", docs[1])
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 
-dir = 'db_docs'
 embedding = OpenAIEmbeddings()
 
-vectorstore = Chroma.from_documents(docs, embedding, persist_directory=dir)
-del vectorstore
+vectorstore = Chroma.from_documents(docs, embedding)
 
-# Load database from folder
-vectorstore = Chroma(persist_directory=dir, embedding_function=embedding)
 retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
-query = "Que apredizados devo apresentar ao fim dessa unidade de HTML?"
+query = "Acessibilidade e CSS"
 search_docs = retriever.invoke(query)
 
 print("\nquery", query)
