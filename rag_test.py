@@ -50,38 +50,38 @@ print("related content", search_docs)
 
 # Indexing: load and keep in sync documents from any source into a vector store
 
-from langchain.indexes import SQLRecordManager, index
-
-namespace = f"chroma/index"
-record_manager = SQLRecordManager(namespace,
-                                  db_url="sqlite:///record_manager_cache.sql")
-
-record_manager.create_schema()
-
-print('')
-print(index(
-    docs,
-    record_manager,
-    vectorstore,
-    cleanup="full",
-    source_id_key="source"))
-
-removed_doc = docs.pop()
-print("removing doc")
-
-print(index(
-    docs,
-    record_manager,
-    vectorstore,
-    cleanup="full",
-    source_id_key="source"))
-
-docs.append(removed_doc)
-print("append doc")
-
-print(index(
-    docs,
-    record_manager,
-    vectorstore,
-    cleanup="full",
-    source_id_key="source"))
+# from langchain.indexes import SQLRecordManager, index
+#
+# namespace = f"chroma/index"
+# record_manager = SQLRecordManager(namespace,
+#                                   db_url="sqlite:///record_manager_cache.sql")
+#
+# record_manager.create_schema()
+#
+# print('')
+# print(index(
+#     docs,
+#     record_manager,
+#     vectorstore,
+#     cleanup="full",
+#     source_id_key="source"))
+#
+# removed_doc = docs.pop()
+# print("removing doc")
+#
+# print(index(
+#     docs,
+#     record_manager,
+#     vectorstore,
+#     cleanup="full",
+#     source_id_key="source"))
+#
+# docs.append(removed_doc)
+# print("append doc")
+#
+# print(index(
+#     docs,
+#     record_manager,
+#     vectorstore,
+#     cleanup="full",
+#     source_id_key="source"))
