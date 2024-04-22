@@ -1,3 +1,5 @@
+import os
+
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -21,7 +23,11 @@ load_dotenv()
 user_name = 'You'
 bot_name = 'AI Tutor+'
 avatars = {"human": user_name, "ai": bot_name}
-
+dir_vectorstore = 'db_docs'
+max_memory = 16
+first_ai_message = ("Olá! Eu sou uma IA que cria lições personalizadas com "
+                    "base no seu nível de conhecimento em conteúdos do meu "
+                    "escopo. Vamos começar? ")
 
 st.set_page_config(
     page_title=f"{bot_name}"
@@ -30,18 +36,27 @@ st.subheader(f":book: Embarque na jornada do conhecimento com o {bot_name}!")
 
 st.info(
     (
-        "Essa ferramenta é capaz de compreender o seu nível de inglês e criar "
-        "lições personlizadas para você. "
+        "Essa ferramenta é capaz de compreender o seu nível de conhecimento "
+        "em diversos temas e criar lições personalizadas para você. "
     ),
     icon="ℹ️",
 )
 
-if st.button("Limpar histórico"):
-    st.session_state.llm_chain.memory.clear()
-    st.session_state.llm_chain.memory.add_ai_message("How can I help you?")
+
+
+
+def clear_memory():
+    st.session_state.memory.messages = []
+    st.session_state.memory.add_ai_message(first_ai_message)
+    st.session_state.interface_memory.messages = []
+    st.session_state.interface_memory.add_ai_message(first_ai_message)
     st.balloons()
 
-if "docs_summarization" not in st.session_state:
+
+if st.button("Limpar histórico"):
+    clear_memory()
+
+if "llm_chain" not in st.session_state:
 
     # 1 - Sumarization
     #
@@ -55,72 +70,100 @@ if "docs_summarization" not in st.session_state:
     # This may take a few seconds, but it only runs once on chat startup.
     # Alternatively, it can be adapted to generate the topics externally.
 
+    for key in st.session_state.keys():
+        del st.session_state[key]
 
     llm_summarization = ChatOpenAI(model="gpt-3.5-turbo", temperature=0,
                                    streaming=False)
 
     # Map
-    map_template = """A seguir está um conjunto de documentos
-{docs}
-Com base nesta lista de documentos, identifique os principais temas.
-Resposta útil:"""
+    map_template = (
+        "A seguir está um pedaço de documento: "
+
+        "\n\n{docs} "
+
+        "\n\nCom base nesta lista de documentos, identifique os "
+        "principais temas, em tópicos curtos, com poucas "
+        "palavras. Limite de 1 a 3 tópicos. "
+        "Seja breve na descrição dos tópicos e atenha-se apenas "
+        "ao conteúdo dos documentos. "
+
+        "\nResposta: "
+    )
 
     map_prompt = PromptTemplate.from_template(map_template)
     map_chain = LLMChain(llm=llm_summarization, prompt=map_prompt)
 
     # Reduce
-    reduce_template = """A seguir está um conjunto de resumos:
-{docs}
-Utilize-os para destilar em um resumo final e consolidado dos principais 
-temas.
-Resposta útil:"""
+    reduce_template = (
+        "A seguir está um conjunto de tópicos de diversos "
+        "documentos: "
 
+        "\n\n{docs} "
+
+        "\n\nCom base nesses tópicos, crie uma nova lista de "
+        "tópicos resumindo todo o conjunto fornecido. Limite "
+        "de 5 a 10 tópicos. Não crie tópicos repetitivos. "
+        "Dê pouca ênfase em tópicos destoantes do contexto "
+        "geral. "
+
+        "\nResposta:"
+    )
+
+    # maps each document to an individual summary using a chain
     reduce_prompt = PromptTemplate.from_template(reduce_template)
     reduce_chain = LLMChain(llm=llm_summarization, prompt=reduce_prompt)
 
-    # Takes a list of documents, combines them into a single string, and
-    # passes this to an LLMChain
+    # combine those summaries into a single global summary
     combine_documents_chain = StuffDocumentsChain(
-        llm_chain=reduce_chain, document_variable_name="docs"
-    )
+        llm_chain=reduce_chain, document_variable_name="docs")
 
-    # Combines and iteratively reduces the mapped documents
+    # combines and iteratively reduces the mapped documents
+    # if the cumulative number of tokens in our mapped documents exceeds 4000
+    # tokens, then we’ll recursively pass in the documents in batches of
+    # < 4000 tokens to our StuffDocumentsChain
     reduce_documents_chain = ReduceDocumentsChain(
-        # This is final chain that is called.
+        # this is final chain that is called.
         combine_documents_chain=combine_documents_chain,
-        # If documents exceed context for `StuffDocumentsChain`
+        # if documents exceed context for `StuffDocumentsChain`
         collapse_documents_chain=combine_documents_chain,
-        # The maximum number of tokens to group documents into.
+        # the maximum number of tokens to group documents into.
         token_max=4000,
     )
 
-    # Combining documents by mapping a chain over them, then combining results
+    # combining documents by mapping a chain over them, then combining results
     map_reduce_chain = MapReduceDocumentsChain(
-        # Map chain
+        # map chain
         llm_chain=map_chain,
-        # Reduce chain
+        # reduce chain
         reduce_documents_chain=reduce_documents_chain,
-        # The variable name in the llm_chain to put the documents in
+        # the variable name in the llm_chain to put the documents in
         document_variable_name="docs",
-        # Return the results of the map steps in the output
+        # return the results of the map steps in the output
         return_intermediate_steps=False,
     )
 
+    # obtains information from various files, including PDFs and images
     loader = DirectoryLoader('resources/', exclude=["*.mp4", "*.json"],
                              use_multithreading=True)
     docs = loader.load()
 
+    # split documents into smaller parts
     text_splitter = CharacterTextSplitter.from_tiktoken_encoder(
-        chunk_size=1000, chunk_overlap=10
+        chunk_size=600, chunk_overlap=0
     )
     split_docs = text_splitter.split_documents(docs)
 
+    # create a vector database for similarity search
+    embedding = OpenAIEmbeddings()
+    vectorstore = Chroma.from_documents(documents=split_docs,
+                                        embedding=embedding)
+    retriever = vectorstore.as_retriever(
+        search_kwargs={'k': 3}
+    )
+
+    # list of topics from documents
     docs_summarization = map_reduce_chain.run(split_docs)
-
-    st.session_state.docs_summarization = docs_summarization
-
-
-if "llm_chain" not in st.session_state:
 
     # 2 - Interactive Learning Conversational Chat
     #
@@ -134,53 +177,72 @@ if "llm_chain" not in st.session_state:
     # discussion and generates a query to search for relevant information in
     # the documents, which are also inserted in the chat context.
 
-    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.5, streaming=False)
-
-    embedding = OpenAIEmbeddings()
-
-    vectorstore = Chroma(persist_directory='db_docs',
-                         embedding_function=embedding)
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
+    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.2, streaming=False)
 
     memory = StreamlitChatMessageHistory(key="chat_messages")
-    memory.add_ai_message("Olá! Eu sou uma IA que cria lições personalizadas"
-                          "com base no seu nível de conhecimento em "
-                          "conteúdos do meu escopo. Vamos começar? ")
+    memory.add_ai_message(first_ai_message)
 
     st.session_state.memory = memory
 
-    # Contextualize history
-    contextualize_q_system_prompt = """Dado um histórico de chat de uma 
-conversa sobre temas do conhecimento e a última entrada do usuário (que pode 
-fazer referência ao contexto no histórico), formule uma frase independente 
-que represente o assunto do último tópico que está sendo discutido. NÃO 
-responda à entrada do usuário, apenas a reformule se necessário.
-Caso ainda não tenha sido abordado nenhum tópico em específico, retorne uma 
-frase vazia.
-"""
+    interface_memory = StreamlitChatMessageHistory()
+    interface_memory.add_ai_message(first_ai_message)
+    st.session_state.interface_memory = interface_memory
+
+    ### Contextualize question ###
+    contextualize_q_system_prompt = (
+        "Dado o histórico, identifique qual é o tema mais recente que está "
+        "sendo discutido, dentre a lista de temas abaixo. "
+        "Caso o histórico contenha apenas saudações ou apresentações "
+        "retorne apenas: 'Saudações'. "
+        "\nNÃO responda à entrada do usuário. NÃO faça perguntas. NÃO "
+        "interaja com o usuário. Dê uma resposta curta contendo apenas o "
+        "tema da lista. "
+
+        "\n\nTemas:"
+        "\n\n0. Saudações"
+        f"\n{docs_summarization}"
+    )
+
     contextualize_q_prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", contextualize_q_system_prompt),
             MessagesPlaceholder("chat_history"),
             ("human", "{input}"),
+            ("system", contextualize_q_system_prompt)
         ]
     )
+    # make a rephrasing of the input query to the retriever, so that the
+    # retrieval incorporates the context of the conversation
     history_aware_retriever = create_history_aware_retriever(
         llm_summarization, retriever, contextualize_q_prompt
     )
 
-    # Chat
-    chat_system_prompt = """Você é uma IA conversacional da área do ensino. 
-Seu objetivo é interagir com o usuário sobre os temas do seu conhecimento 
-fornecidos abaixo, identificando o nível de conhecimento dele sobre cada 
-tema e criando lições personalizadas para ele sobre o tema em questão. Após 
-fornecer as lições de um tema, pergunte se o usuário ficou com dúvidas. Se 
-sim, responda. Se não, troque o tópico e repita o processo.
+    ### Answer question ###
+    chat_system_prompt = (
+        "Você é uma IA conversacional da área do ensino. Seu objetivo é "
+        "interagir com o usuário sobre os temas do seu conhecimento "
+        "fornecidos abaixo. Identifique primeiro o nível de conhecimento "
+        "dele sobre cada tema com uma pergunta e então crie lições "
+        "personalizadas para que ele aprenda sobre o tema em questão. "
 
-Temas:
+        "\nPrimeiro, verifique se algum tema já foi proposto ao usuário e se "
+        "ele já mostrou seu nível de conhecimento. Caso não, proponha um "
+        "tema e procure saber o nível de conhecimento do usuário sobre "
+        "aquele tema. Caso sim, crie lições com base no nível do usuário "
+        "sobre o tema baseado no contexto fornecido abaixo. SEMPRE ESCOLHA "
+        "UM TEMA E AVALIE O NÍVEL DO USUÁRIO ANTES DE APLICAR A LIÇÃO. "
+        "O contexto não deve ser levado em conta na escolha do tema, "
+        "apenas a lista de temas."
+        "\nApós cada lição, troque o tema, comece avaliando o usuário sobre "
+        "o novo tema e forneceça lições. JAMAIS deixe a conversa acabar e "
+        "não pare de propor novas lições. "
 
-{context}
-"""
+        "\nTemas: "
+
+        f"\n\n{docs_summarization}"
+
+        "\n\nContexto: "
+        "\n\n{context} "
+    )
     chat_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", chat_system_prompt),
@@ -188,33 +250,54 @@ Temas:
             ("human", "{input}"),
         ]
     )
+    # receives the retrieved context, the list of topics, history and user
+    # input to create an answer
     chat_chain = create_stuff_documents_chain(llm, chat_prompt)
 
+    # combine the chains
     rag_chain = create_retrieval_chain(history_aware_retriever,
                                        chat_chain)
 
+    # deal with message history update
     conversational_rag_chain = RunnableWithMessageHistory(
         rag_chain,
         lambda session_id: memory,
         input_messages_key="input",
-        history_messages_key="history"
+        history_messages_key="chat_history",
+        output_messages_key="answer"
     )
 
-    conversational_rag_chain.get_graph().print_ascii()
-
+    # variable to be maintained at each streamlit execution
     st.session_state.llm_chain = conversational_rag_chain
 
     ##################
 
-for msg in st.session_state.memory.messages:
+# fill in chat messages
+for msg in st.session_state.interface_memory.messages:
     st.chat_message(avatars[msg.type]).write(msg.content)
 
+# runs when the user sends his message
 if user_input := st.chat_input("Digite aqui"):
+    # put the user's message in the chat
     st.chat_message("human").write(user_input)
+    # put the user's message in the interface memory
+    st.session_state.interface_memory.add_user_message(user_input)
 
+    # run the chain
     config = {"configurable": {"session_id": "any"}}
     response = st.session_state.llm_chain.invoke(
         {"input": user_input},
         config)
 
-    st.chat_message(bot_name).write(response.content)
+    # debug information for devs
+    st.write(response)
+    # put the AI message in the chat
+    st.chat_message(bot_name).write(response['answer'])
+    # put the AI message in the interface memory
+    st.session_state.interface_memory.add_ai_message(response['answer'])
+
+    # removes two messages from chain memory since two new ones are inserted
+    # in each iteration
+    if len(st.session_state.memory.messages) > max_memory:
+        st.session_state.memory.messages.pop(0)
+        st.session_state.memory.messages.pop(0)
