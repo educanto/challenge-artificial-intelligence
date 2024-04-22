@@ -111,22 +111,47 @@ realize os seguintes passos para preparação do repositório:
    instalação ao PATH. Referência: 
    https://stackoverflow.com/questions/50951955/pytesseract-tesseractnotfound-error-tesseract-is-not-installed-or-its-not-i  
 
-A aplicação deve ser executada com o comando *streamlit run app.py*
+A aplicação deve ser executada com o comando *streamlit run app.py*.
+
+IMPORTANTE: Caso a pasta *db_docs* (banco de dados vetorizado) já exista no 
+repositório durante a execução, o código assume que o banco já foi criado e 
+não o criará novamente. Entretanto, recomenda-se deletar a pasta a cada 
+execução.
 
 
 
-# Dificuldades de implementação
+# Dificuldades de implementação e próximos passos
+
+### Banco de dados vetorizado persistente
+
+Criar formas de manter o banco de dados vetorizados persistente. Assim, ele 
+não precisa ser criado toda vez que o chat é inicializado.
 
 ### Indexação de arquivos .mp4 e .json
 
 A classe *DirectoryLoader* deveria suportar o carregamento de múltiplos 
 tipos de arquivo. Porém, na tentativa de carregar arquivos JSON o erro 
 *ValueError: Json schema does not match the Unstructured schema* acontece. 
-Além disso, o módulo não é compatível com arquivos .mp4.
+Além disso, o módulo não é compatível com arquivos .mp4. Por falta de tempo, 
+optou-se por ignorar o carregamento desses dois arquivos.
 
-Por falta de tempo, optou-se por ignorar o carregamento desses dois arquivos.
+Como próximos passos, recomenda-se explorar novas bibliotecas para carregar 
+os formatos de arquivo não compatíveis com *DirectoryLoader* e anexar à 
+solução.
 
 ### Geração de conteúdos dinâmicos
 
 Os conteúdos gerados pela LLM se limitaram a conteúdos textuais. Não foi 
 possível abordar em tempo a geração de conteúdos em áudio e vídeo.
+
+O próximo passo é explorar outras LLMs generativas para geração de vídeos e 
+estudar formas de incluí-las na implementação de cadeias do Langchain. A 
+geração de conteúdos por áudio pode ser realizada com alguma ferramenta que 
+faça a leitura do texto, sem necessidade de modelos de IA.
+
+### Melhorias na memória do chat
+
+Separar o histórico da LLM do histórico do chat. Assim, quando a janela de 
+memória da LLM é deslocada pelo limite máximo atingido (variável 
+*max_memory*), o chat ainda continua a exibir as mensagens antigas. Mesmo 
+que elas não sejam levadas em consideração pela LLM.
