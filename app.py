@@ -4,20 +4,16 @@ from dotenv import load_dotenv
 from langchain.prompts import (ChatPromptTemplate, MessagesPlaceholder,
                                PromptTemplate)
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain.chains import (LLMChain, StuffDocumentsChain,
-                              ConversationalRetrievalChain)
 from langchain_chroma import Chroma
-from langchain.chains import create_history_aware_retriever, \
-    create_retrieval_chain
-
+from langchain.chains import (create_history_aware_retriever,
+                              create_retrieval_chain, LLMChain,
+                              StuffDocumentsChain,
+                              MapReduceDocumentsChain, ReduceDocumentsChain)
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain.chains.combine_documents import create_stuff_documents_chain
-
-from langchain_community.chat_message_histories import (
-    StreamlitChatMessageHistory,
-)
-from langchain.chains import MapReduceDocumentsChain, ReduceDocumentsChain
 from langchain_text_splitters import CharacterTextSplitter
+from langchain_community.chat_message_histories import (
+    StreamlitChatMessageHistory)
 from langchain_community.document_loaders import DirectoryLoader
 
 load_dotenv()
@@ -118,8 +114,6 @@ Resposta útil:"""
         chunk_size=1000, chunk_overlap=10
     )
     split_docs = text_splitter.split_documents(docs)
-
-    st.chat_message(avatars['human']).write(split_docs)
 
     docs_summarization = map_reduce_chain.run(split_docs)
 
