@@ -26,7 +26,7 @@ st.subheader(f":book: Embarque na jornada do conhecimento com o {bot_name}!")
 st.info(
     (
         "Essa ferramenta é capaz de compreender o seu nível de inglês e criar "
-        "lições personlizadas para você. "
+        "lições personalizadas para você. "
     ),
     icon="ℹ️",
 )
