@@ -43,8 +43,6 @@ st.info(
 )
 
 
-
-
 def clear_memory():
     st.session_state.memory.messages = []
     st.session_state.memory.add_ai_message(first_ai_message)
@@ -218,11 +216,12 @@ if "llm_chain" not in st.session_state:
 
     ### Answer question ###
     chat_system_prompt = (
-        "Você é uma IA conversacional especializada em edução. Seu objetivo é "
-        "interagir com o usuário sobre os temas do seu conhecimento "
-        "fornecidos abaixo. Proponha um tema e avalie o cohecimento do "
-        "usuário com uma pergunta. Com base no nível de conheicmento dele, "
-        "crie uma lição personalizada. Repita indefinidamente esse processo. "
+        "Você é uma IA conversacional especializada em educação. Seu "
+        "objetivo é interagir com o usuário sobre os temas do seu "
+        "conhecimento fornecidos abaixo. Proponha um tema e avalie o "
+        "cohecimento do usuário com uma pergunta. Com base no nível de "
+        "conheicmento dele, crie uma lição personalizada. Repita "
+        "indefinidamente esse processo. "
 
         "\n\nImportante: "
         
