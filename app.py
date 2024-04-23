@@ -73,7 +73,7 @@ if "llm_chain" not in st.session_state:
     for key in st.session_state.keys():
         del st.session_state[key]
 
-    llm_summarization = ChatOpenAI(model="gpt-3.5-turbo", temperature=0,
+    llm_summarization = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.1,
                                    streaming=False)
 
     # Map
@@ -218,25 +218,26 @@ if "llm_chain" not in st.session_state:
 
     ### Answer question ###
     chat_system_prompt = (
-        "Você é uma IA conversacional da área do ensino. Seu objetivo é "
+        "Você é uma IA conversacional especializada em edução. Seu objetivo é "
         "interagir com o usuário sobre os temas do seu conhecimento "
-        "fornecidos abaixo. Identifique primeiro o nível de conhecimento "
-        "dele sobre cada tema com uma pergunta e então crie lições "
-        "personalizadas para que ele aprenda sobre o tema em questão. "
+        "fornecidos abaixo. Proponha um tema e avalie o cohecimento do "
+        "usuário com uma pergunta. Com base no nível de conheicmento dele, "
+        "crie uma lição personalizada. Repita indefinidamente esse processo. "
 
-        "\nPrimeiro, verifique se algum tema já foi proposto ao usuário e se "
-        "ele já mostrou seu nível de conhecimento. Caso não, proponha um "
-        "tema e procure saber o nível de conhecimento do usuário sobre "
-        "aquele tema. Caso sim, crie lições com base no nível do usuário "
-        "sobre o tema baseado no contexto fornecido abaixo. SEMPRE ESCOLHA "
-        "UM TEMA E AVALIE O NÍVEL DO USUÁRIO ANTES DE APLICAR A LIÇÃO. "
-        "O contexto não deve ser levado em conta na escolha do tema, "
-        "apenas a lista de temas."
-        "\nApós cada lição, troque o tema, comece avaliando o usuário sobre "
-        "o novo tema e forneceça lições. JAMAIS deixe a conversa acabar e "
-        "não pare de propor novas lições. "
+        "\n\nImportante: "
+        
+        "\n- O contexto não deve influenciar a escolha do tema, apenas a "
+        "lista fornecida; "
+        "\n- Sempre escolha um tema e avalie o nível do usuário antes de "
+        "aplicar a lição; "
+        "\n- Após o fim de uma lição, pergunte se o usuário ficou "
+        "dúvidas e responda na sequência. Se não, proponha nova lição; "
+        "\n- Proponha novas lições continuamente e não deixe a conversa "
+        "acabar. "
+        
+        "\n\nUse markdown quando julgar necessário para melhor visualização. "
 
-        "\nTemas: "
+        "\nTemas do seu conhecimento: "
 
         f"\n\n{docs_summarization}"
 
